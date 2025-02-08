@@ -129,10 +129,13 @@ public class GameManager : MonoBehaviour
         Node endNode = NodeMatrix[endPosx, endPosy];
         GameObject entity = null;
 
+        //Realiza el algoritmo A* y devuelve el camino
         List<Node> path = UseAStarAlgorithm(startNode, endNode);
 
+        //Crea nuevos tokens para visualizar el camino
         InstantiateTestTokens(startNode, endNode, ref entity);
 
+        //Ejecuta la animación del camino
         StartCoroutine(ExecutePathAnimation(entity, path));
     }
 
@@ -142,9 +145,9 @@ public class GameManager : MonoBehaviour
         List<Node> visitedNodes = new List<Node>();
         List<Way> notVisitedWays = new List<Way>();
 
-        Way startWay = new Way(start, 0);
-        startWay.ACUMulatedCost = 0;
-        notVisitedWays.Add(startWay);
+        Node currentNode = start;
+        Way currentWay = new Way(start, 0);
+        notVisitedWays.Add(currentWay);
 
         while (notVisitedWays.Count > 0)
         {
@@ -152,30 +155,30 @@ public class GameManager : MonoBehaviour
                 .OrderBy(way => way.ACUMulatedCost + way.NodeDestiny.Heuristic)
                 .ToList();
 
-            Way currentWay = notVisitedWays[0];
+            currentWay = notVisitedWays[0];
             notVisitedWays.RemoveAt(0);
-            Node current = currentWay.NodeDestiny;
+            currentNode = currentWay.NodeDestiny;
 
-            if (current == end)
+            if (currentNode == end)
             {
-                while (current != null)
+                while (currentNode != null)
                 {
-                    result.Add(current);
-                    current = current.NodeParent;
+                    result.Add(currentNode);
+                    currentNode = currentNode.NodeParent;
                 }
                 result.Reverse();
 
+                // Para ver cuales son los nodos que ha visitado una vez encontrado el camino
                 foreach (var node in visitedNodes)
                 {
                     InstantiateToken(node, Color.cyan);
                 }
-
                 return result;
             }
 
-            visitedNodes.Add(current);
+            visitedNodes.Add(currentNode);
 
-            foreach (Way newWay in current.WayList)
+            foreach (Way newWay in currentNode.WayList)
             {
                 Node newNode = newWay.NodeDestiny;
                 float newCost = currentWay.ACUMulatedCost + newWay.Cost;
@@ -183,20 +186,17 @@ public class GameManager : MonoBehaviour
                 if (visitedNodes.Contains(newNode))
                     continue;
 
-                Way existingWay = notVisitedWays.FirstOrDefault(way => way.NodeDestiny == newNode);
-
-                if (existingWay == null)
+                // Si el camino no ha sido visitado, lo añade a la lista de caminos no visitados
+                if (notVisitedWays.FirstOrDefault(way => way.NodeDestiny == newNode) == null)
                 {
-                    newNode.NodeParent = current;
+                    newNode.NodeParent = currentNode;
                     newWay.ACUMulatedCost = newCost;
                     notVisitedWays.Add(newWay);
                 }
             }
         }
-
         return result;
     }
-
 
     private void InstantiateTestTokens(Node start, Node end, ref GameObject entityObject)
     {
