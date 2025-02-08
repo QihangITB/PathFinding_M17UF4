@@ -1,7 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.VisualScripting;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using static UnityEngine.EventSystems.EventTrigger;
 
 public class GameManager : MonoBehaviour
 {
@@ -41,6 +44,8 @@ public class GameManager : MonoBehaviour
         //GameMatrix[startPosx, startPosy] = 1;
         NodeMatrix = new Node[Size, Size];
         CreateNodes();
+
+        ExecutePathFinding();
     }
     public void CreateNodes()
     {
@@ -113,6 +118,110 @@ public class GameManager : MonoBehaviour
             {
                 node.WayList.Add(new Way(NodeMatrix[x + 1, y + 1], Calculs.DiagonalDistance));
             }
+        }
+    }
+
+    // MI IMPLEMENTACIÓN:
+
+    public void ExecutePathFinding()
+    {
+        Node startNode = NodeMatrix[startPosx, startPosy];
+        Node endNode = NodeMatrix[endPosx, endPosy];
+        GameObject entity = null;
+
+        List<Node> path = UseAStarAlgorithm(startNode, endNode);
+
+        InstantiateTestTokens(startNode, endNode, ref entity);
+
+        StartCoroutine(ExecutePathAnimation(entity, path));
+    }
+
+    public List<Node> UseAStarAlgorithm(Node start, Node end)
+    {
+        List<Node> result = new List<Node>();
+        List<Node> visitedNodes = new List<Node>();
+        List<Way> notVisitedWays = new List<Way>();
+
+        Way startWay = new Way(start, 0);
+        startWay.ACUMulatedCost = 0;
+        notVisitedWays.Add(startWay);
+
+        while (notVisitedWays.Count > 0)
+        {
+            notVisitedWays = notVisitedWays
+                .OrderBy(way => way.ACUMulatedCost + way.NodeDestiny.Heuristic)
+                .ToList();
+
+            Way currentWay = notVisitedWays[0];
+            notVisitedWays.RemoveAt(0);
+            Node current = currentWay.NodeDestiny;
+
+            if (current == end)
+            {
+                while (current != null)
+                {
+                    result.Add(current);
+                    current = current.NodeParent;
+                }
+                result.Reverse();
+
+                foreach (var node in visitedNodes)
+                {
+                    InstantiateToken(node, Color.cyan);
+                }
+
+                return result;
+            }
+
+            visitedNodes.Add(current);
+
+            foreach (Way newWay in current.WayList)
+            {
+                Node newNode = newWay.NodeDestiny;
+                float newCost = currentWay.ACUMulatedCost + newWay.Cost;
+
+                if (visitedNodes.Contains(newNode))
+                    continue;
+
+                Way existingWay = notVisitedWays.FirstOrDefault(way => way.NodeDestiny == newNode);
+
+                if (existingWay == null)
+                {
+                    newNode.NodeParent = current;
+                    newWay.ACUMulatedCost = newCost;
+                    notVisitedWays.Add(newWay);
+                }
+            }
+        }
+
+        return result;
+    }
+
+
+    private void InstantiateTestTokens(Node start, Node end, ref GameObject entityObject)
+    {
+        InstantiateToken(start, Color.green);
+        InstantiateToken(end, Color.green);
+
+        entityObject = Instantiate(token, start.RealPosition, Quaternion.identity);
+        entityObject.GetComponent<SpriteRenderer>().color = Color.blue;
+    }
+
+    private void InstantiateToken(Node node, Color color)
+    {
+        GameObject tokenObject = Instantiate(token, node.RealPosition, Quaternion.identity);
+        tokenObject.GetComponent<SpriteRenderer>().color = color;
+    }
+
+    private IEnumerator ExecutePathAnimation(GameObject entity ,List<Node> nodes)
+    {
+        foreach (Node node in nodes)
+        {
+            entity.transform.position = node.RealPosition;
+
+            yield return new WaitForSeconds(0.75f);
+
+            InstantiateToken(node, Color.yellow);
         }
     }
 

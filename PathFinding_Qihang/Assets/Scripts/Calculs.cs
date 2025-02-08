@@ -10,6 +10,7 @@ public static class Calculs
     public static void CalculateDistances(BoxCollider2D coll, float Size)
     {
         LinearDistance = coll.size.x / Size;
+        DiagonalDistance = Mathf.Sqrt(LinearDistance * LinearDistance + LinearDistance * LinearDistance);
         FirstPosition = new Vector2(-Size / 4f + LinearDistance / 2f - 0.1f,
             Size / 4f - LinearDistance / 2f + 0.1f);
     }
